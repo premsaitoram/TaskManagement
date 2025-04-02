@@ -5,10 +5,8 @@ import toast from "react-hot-toast";
 
 const TasksContext = createContext();
 
-
 // const serverUrl = "http://localhost:8000/api/v1";
-
-const serverUrl = "https://taskmanagement-h1da.onrender.com"
+const serverUrl = "https://taskfyer.onrender.com/api/v1"
 
 export const TasksProvider = ({ children }) => {
   const userId = useUserContext().user._id;
@@ -51,11 +49,18 @@ export const TasksProvider = ({ children }) => {
   const getTasks = async () => {
     setLoading(true);
     try {
+      // Fixed endpoint to include /api/v1 and user-specific tasks
       const response = await axios.get(`${serverUrl}/tasks`);
-
-      setTasks(response.data.tasks);
+      
+      if (response.data && response.data.tasks) {
+        setTasks(response.data.tasks);
+      } else {
+        console.log("Unexpected response format:", response.data);
+        setTasks([]);
+      }
     } catch (error) {
-      console.log("Error getting tasks", error);
+      console.error("Error getting tasks", error.response?.data || error.message);
+      setTasks([]);
     }
     setLoading(false);
   };
@@ -65,10 +70,9 @@ export const TasksProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await axios.get(`${serverUrl}/task/${taskId}`);
-
       setTask(response.data);
     } catch (error) {
-      console.log("Error getting task", error);
+      console.error("Error getting task", error.response?.data || error.message);
     }
     setLoading(false);
   };
@@ -76,14 +80,20 @@ export const TasksProvider = ({ children }) => {
   const createTask = async (task) => {
     setLoading(true);
     try {
-      const res = await axios.post(`${serverUrl}/task/create`, task);
+      // Ensure the task has a user property set to the current user's ID
+      const taskWithUser = { ...task, user: userId };
+      const res = await axios.post(`${serverUrl}/task/create`, taskWithUser);
 
       console.log("Task created", res.data);
-
-      setTasks([...tasks, res.data]);
-      toast.success("Task created successfully");
+      
+      // Make sure you're setting the right data in the state
+      if (res.data) {
+        setTasks([...tasks, res.data]);
+        toast.success("Task created successfully");
+      }
     } catch (error) {
-      console.log("Error creating task", error);
+      console.error("Error creating task", error.response?.data || error.message);
+      toast.error("Failed to create task");
     }
     setLoading(false);
   };
@@ -99,11 +109,12 @@ export const TasksProvider = ({ children }) => {
       });
 
       toast.success("Task updated successfully");
-
       setTasks(newTasks);
     } catch (error) {
-      console.log("Error updating task", error);
+      console.error("Error updating task", error.response?.data || error.message);
+      toast.error("Failed to update task");
     }
+    setLoading(false);
   };
 
   const deleteTask = async (taskId) => {
@@ -113,11 +124,13 @@ export const TasksProvider = ({ children }) => {
 
       // remove the task from the tasks array
       const newTasks = tasks.filter((tsk) => tsk._id !== taskId);
-
       setTasks(newTasks);
+      toast.success("Task deleted successfully");
     } catch (error) {
-      console.log("Error deleting task", error);
+      console.error("Error deleting task", error.response?.data || error.message);
+      toast.error("Failed to delete task");
     }
+    setLoading(false);
   };
 
   const handleInput = (name) => (e) => {
@@ -135,10 +148,10 @@ export const TasksProvider = ({ children }) => {
   const activeTasks = tasks.filter((task) => !task.completed);
 
   useEffect(() => {
-    getTasks();
+    if (userId) {
+      getTasks();
+    }
   }, [userId]);
-
-  console.log("Active tasks", activeTasks);
 
   return (
     <TasksContext.Provider
@@ -146,7 +159,6 @@ export const TasksProvider = ({ children }) => {
         tasks,
         loading,
         task,
-        tasks,
         getTask,
         createTask,
         updateTask,

@@ -10,7 +10,8 @@ axios.defaults.withCredentials = true;
 
 export const UserContextProvider = ({ children }) => {
 
-  const serverUrl = "http://localhost:8000";
+  // const serverUrl = "http://localhost:8000";
+  const serverUrl = "https://taskmanagement-h1da.onrender.com"
 
   const router = useRouter();
 
